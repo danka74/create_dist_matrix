@@ -1,0 +1,85 @@
+package se.liu.imt.DistMatrix;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+
+public class CreateDistMatrix {
+
+	/**
+	 * @param args
+	 */
+	public static void main(String[] args) {
+		try {
+			Class.forName("com.mysql.jdbc.Driver");
+		
+			String url = "jdbc:mysql://localhost:3306/ira";		
+	
+			Connection con =
+			    DriverManager.getConnection(
+			                url,"ira", "ira");
+			
+			Statement stmt = con.createStatement();
+			
+			ResultSet allConceptsRS = stmt.executeQuery("(SELECT conceptid FROM bk WHERE sub_id = 1) UNION DISTINCT (SELECT conceptid FROM ss WHERE sub_id = 1)");
+			
+			ArrayList<Integer> codes = new ArrayList<Integer>();
+			
+			while(allConceptsRS.next()) {
+		        Integer id = allConceptsRS.getInt(1);
+		        codes.add(id);
+		    }
+			
+			allConceptsRS.close();
+			stmt.close();
+			
+			PreparedStatement distStmt = con.prepareStatement("SELECT min(t1.leveldifference), min(t2.leveldifference) " +
+					"FROM transitiveclosure_self t1, transitiveclosure_self t2 " +
+					"WHERE t1.conceptid1 = ? AND t2.conceptid1 = ? AND t1.conceptid2 = t2.conceptid2 " +
+					"GROUP BY t1.conceptid1, t2.conceptid1");
+			
+			int i,j;
+			
+			for(i = 0; i < codes.size(); i++) {
+				if(i != 0)
+					System.out.print("\t");
+				System.out.print(codes.get(i));
+			}
+			System.out.print("\n");
+			
+			for(i = 0; i < codes.size(); i++) {
+				System.out.print(codes.get(i));
+				for (j = 0; j < codes.size(); j++) {
+					distStmt.setInt(1, codes.get(i));
+					distStmt.setInt(2, codes.get(j));
+					ResultSet distRS = distStmt.executeQuery();
+					System.out.print("\t");
+					if(distRS.next())
+						System.out.print(Math.max(distRS.getInt(1), distRS.getInt(2)));
+					
+				}
+				System.out.print("\n");
+			}
+			
+			con.close();
+
+
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (ClassNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+
+
+		
+
+	}
+
+}
